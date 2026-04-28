@@ -1,12 +1,23 @@
 import React from "react";
 
-export default function Checkout({ cart, setOrders }) {
+export default function Checkout({ cart, setOrders, setCart }) {
 
     const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
 
     const placeOrder = () => {
+
+        if (cart.length === 0) {
+            alert("Cart is empty ❌");
+            return;
+        }
+
+        // ✅ Save order
         setOrders(prev => [...prev, { items: cart, total }]);
-        alert("Order Placed ✅");
+
+        // ✅ Clear cart after order
+        setCart([]);
+
+        alert("✅ Order Placed Successfully!");
     };
 
     return (

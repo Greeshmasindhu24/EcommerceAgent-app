@@ -9,7 +9,7 @@ import Checkout from "./Checkout";
 import Dashboard from "./Dashboard";
 import ChatAgent from "./components/ChatAgent";
 
-// 🔥 BACKEND URL (UPDATE ONLY HERE IF NEEDED)
+// ✅ Backend URL
 const API = "https://ecommerceagent-app.onrender.com";
 
 export default function App() {
@@ -17,6 +17,7 @@ export default function App() {
   const [category, setCategory] = useState("all");
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [orders, setOrders] = useState([]); // ✅ NEW
 
   // ✅ Check login
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function App() {
     }
   }, []);
 
-  // ✅ Fetch products (FIXED)
+  // ✅ Fetch products
   useEffect(() => {
     axios.get(`${API}/products/${category}`)
       .then(res => setProducts(res.data))
@@ -36,6 +37,7 @@ export default function App() {
   // ✅ Add to cart
   const addToCart = (p) => {
     const exist = cart.find(i => i.id === p.id);
+
     if (exist) {
       setCart(cart.map(i =>
         i.id === p.id ? { ...i, qty: (i.qty || 1) + 1 } : i
@@ -53,21 +55,20 @@ export default function App() {
 
   return (
     <Router>
-      <div style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ fontFamily: "sans-serif" }}>
 
         {/* 🔥 HEADER */}
         {user && (
           <div style={{
             background: "#2874f0",
-            padding: "10px 20px",
+            padding: "10px",
             color: "white",
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
+            justifyContent: "space-between"
           }}>
-            <h2>🛒 MyStore</h2>
+            <h2>🛒 Welcome to MyStore</h2>
 
-            <div style={{ display: "flex", gap: "20px" }}>
+            <div style={{ display: "flex", gap: "15px" }}>
               <Link to="/" style={{ color: "white" }}>Home</Link>
               <Link to="/cart" style={{ color: "white" }}>Cart ({cart.length})</Link>
               <Link to="/dashboard" style={{ color: "white" }}>Dashboard</Link>
@@ -96,7 +97,7 @@ export default function App() {
               ) : (
                 <div style={{ padding: "20px" }}>
 
-                  {/* 🔹 CATEGORY FILTER */}
+                  {/* CATEGORY FILTER */}
                   <div style={{ marginBottom: "20px" }}>
                     {["all", "grocery", "electronics", "fashion"].map(cat => (
                       <button
@@ -116,7 +117,7 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* 🛍️ PRODUCTS */}
+                  {/* PRODUCTS */}
                   <div style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
@@ -158,16 +159,24 @@ export default function App() {
             element={user ? <Cart cart={cart} /> : <Navigate to="/" />}
           />
 
-          {/* 📊 DASHBOARD */}
-          <Route
-            path="/dashboard"
-            element={user ? <Dashboard /> : <Navigate to="/" />}
-          />
-
           {/* 💳 CHECKOUT */}
           <Route
             path="/checkout"
-            element={user ? <Checkout cart={cart} /> : <Navigate to="/" />}
+            element={
+              user
+                ? <Checkout cart={cart} setOrders={setOrders} setCart={setCart} />
+                : <Navigate to="/" />
+            }
+          />
+
+          {/* 📊 DASHBOARD */}
+          <Route
+            path="/dashboard"
+            element={
+              user
+                ? <Dashboard user={user} orders={orders} />
+                : <Navigate to="/" />
+            }
           />
 
         </Routes>
