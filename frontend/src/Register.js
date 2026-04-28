@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; // ✅ FIXED
 
 // ✅ Backend URL
 const API = "https://ecommerceagent-app.onrender.com";
@@ -53,27 +53,40 @@ export default function Register() {
             <input
                 type="email"
                 placeholder="Email"
+                style={{ width: "100%", padding: "10px", margin: "10px 0" }}
                 onChange={(e) => setEmail(e.target.value)}
             />
 
             <input
                 type="password"
                 placeholder="Password"
+                style={{ width: "100%", padding: "10px", margin: "10px 0" }}
                 onChange={(e) => setPassword(e.target.value)}
             />
 
             <input
                 type="password"
                 placeholder="Confirm Password"
+                style={{ width: "100%", padding: "10px", margin: "10px 0" }}
                 onChange={(e) => setConfirmPassword(e.target.value)}
             />
 
-            <button onClick={handleRegister}>
+            <button
+                onClick={handleRegister}
+                style={{
+                    width: "100%",
+                    padding: "10px",
+                    background: "#2874f0",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px"
+                }}
+            >
                 Register
             </button>
 
-            <p>
-                Already have account? <a href="/">Login</a>
+            <p style={{ marginTop: "15px" }}>
+                Already have account? <Link to="/">Login</Link> {/* ✅ FIXED */}
             </p>
         </div>
     );

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom"; // ✅ FIXED
 
 // ✅ Backend URL
 const API = "https://ecommerceagent-app.onrender.com";
@@ -38,21 +39,33 @@ export default function Login({ setUser }) {
             <input
                 type="email"
                 placeholder="Email"
+                style={{ width: "100%", padding: "10px", margin: "10px 0" }}
                 onChange={(e) => setEmail(e.target.value)}
             />
 
             <input
                 type="password"
                 placeholder="Password"
+                style={{ width: "100%", padding: "10px", margin: "10px 0" }}
                 onChange={(e) => setPassword(e.target.value)}
             />
 
-            <button onClick={handleLogin}>
+            <button
+                onClick={handleLogin}
+                style={{
+                    width: "100%",
+                    padding: "10px",
+                    background: "#2874f0",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px"
+                }}
+            >
                 Login
             </button>
 
-            <p>
-                Don't have account? <a href="/register">Register</a>
+            <p style={{ marginTop: "15px" }}>
+                Don't have account? <Link to="/register">Register</Link> {/* ✅ FIXED */}
             </p>
         </div>
     );
