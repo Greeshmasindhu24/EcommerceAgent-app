@@ -9,19 +9,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 db_pool = None
+resolved_database_url = None
 
 
-def get_database_url():
-    raw_url = (
-        os.getenv("POSTGRES_URL", "").strip()
-        or os.getenv("DATABASE_URL", "").strip()
-    )
-    if not raw_url:
-        raise RuntimeError(
-            "POSTGRES_URL or DATABASE_URL is required. "
-            "Add your Supabase connection string to backend/.env"
-        )
-
+def _clean_database_url(raw_url):
     parsed = urlparse(raw_url)
     if not parsed.scheme:
         return raw_url
@@ -43,10 +34,78 @@ def get_database_url():
     return parsed._replace(query=cleaned_query).geturl()
 
 
+def _connection_candidates():
+    candidates = []
+
+    pool_url = os.getenv("POSTGRES_URL", "").strip()
+    if pool_url:
+        candidates.append(_clean_database_url(pool_url))
+
+    direct_url = os.getenv("POSTGRES_URL_NON_POOLING", "").strip()
+    if direct_url:
+        candidates.append(_clean_database_url(direct_url))
+
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        candidates.append(_clean_database_url(database_url))
+
+    host = os.getenv("POSTGRES_HOST", "").strip()
+    password = os.getenv("POSTGRES_PASSWORD", "").strip()
+    if host and password:
+        user = os.getenv("POSTGRES_USER", "postgres").strip()
+        database = os.getenv("POSTGRES_DATABASE", "postgres").strip()
+        candidates.append(
+            f"postgresql://{user}:{password}@{host}:5432/{database}?sslmode=require"
+        )
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique = []
+    for url in candidates:
+        if url not in seen:
+            seen.add(url)
+            unique.append(url)
+    return unique
+
+
+def resolve_database_url():
+    global resolved_database_url
+    if resolved_database_url:
+        return resolved_database_url
+
+    candidates = _connection_candidates()
+    if not candidates:
+        raise RuntimeError(
+            "Supabase is required. Set POSTGRES_URL in backend/.env "
+            "(from Supabase Dashboard > Project Settings > Database)."
+        )
+
+    errors = []
+    for url in candidates:
+        try:
+            conn = psycopg2.connect(url)
+            conn.close()
+            resolved_database_url = url
+            print("Supabase PostgreSQL connected successfully")
+            return resolved_database_url
+        except Exception as exc:
+            errors.append(str(exc))
+
+    raise RuntimeError(
+        "Could not connect to Supabase PostgreSQL. "
+        "Check that your project is active (not paused) and credentials are correct. "
+        f"Errors: {' | '.join(errors[:2])}"
+    )
+
+
+def get_database_url():
+    return resolve_database_url()
+
+
 def get_pool():
     global db_pool
     if db_pool is None:
-        db_pool = pool.ThreadedConnectionPool(1, 10, get_database_url())
+        db_pool = pool.ThreadedConnectionPool(1, 10, resolve_database_url())
     return db_pool
 
 
@@ -56,6 +115,10 @@ def get_conn():
 
 def release_conn(conn):
     get_pool().putconn(conn)
+
+
+def get_backend():
+    return "postgres"
 
 
 def execute(cur, sql, params=None):

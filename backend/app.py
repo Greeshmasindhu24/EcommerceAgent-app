@@ -47,7 +47,7 @@ init_db()
 # ================= HOME =================
 @app.route("/")
 def home():
-    return "Backend Running Successfully (Supabase PostgreSQL)"
+    return "Backend Running Successfully (Supabase PostgreSQL only)"
 
 
 @app.route("/db-status")
@@ -61,9 +61,20 @@ def db_status():
             cur.close()
         finally:
             release_conn(conn)
-        return jsonify({"database": "supabase", "engine": "postgresql", "status": "connected"})
+
+        return jsonify({
+            "status": "connected",
+            "engine": "postgresql",
+            "database": "supabase",
+        })
     except Exception as exc:
-        return jsonify({"database": "supabase", "engine": "postgresql", "status": "error", "message": str(exc)}), 503
+        return jsonify({
+            "status": "error",
+            "engine": "postgresql",
+            "database": "supabase",
+            "message": str(exc),
+            "hint": "Update POSTGRES_URL in backend/.env with a valid Supabase connection string.",
+        }), 503
 
 
 # ================= PRODUCTS =================
