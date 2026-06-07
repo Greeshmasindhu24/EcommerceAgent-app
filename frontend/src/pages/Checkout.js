@@ -1,54 +1,74 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const API = "http://127.0.0.1:5000";
+const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
 
-export default function Checkout({ cart, setOrders, setCart }) {
+export default function Checkout({ cart, setOrders, setCart, user }) {
     const [paymentMethod, setPaymentMethod] = useState("Credit/Debit Card");
     const [customerName, setCustomerName] = useState("");
     const [shippingAddress, setShippingAddress] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
 
     const placeOrder = async () => {
-
         if (cart.length === 0) {
-            alert("Cart is empty ❌");
+            alert("Cart is empty");
             return;
         }
 
         if (!customerName.trim() || !shippingAddress.trim()) {
-            alert("Please provide your name and shipping address 🏠");
+            alert("Please provide your name and shipping address");
             return;
         }
 
         const token = localStorage.getItem("token");
         if (!token) {
-            alert("Please login to place an order 🔑");
+            alert("Please login to place an order");
             return;
         }
 
-        try {
-            await axios.post(`${API}/orders`, {
-                total_amount: total,
-                items: cart,
-                payment_method: paymentMethod,
-                customer_name: customerName,
-                shipping_address: shippingAddress
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+        const email = user?.email || localStorage.getItem("email") || "guest";
 
-            setOrders(prev => [...prev, { items: cart, total, customer_name: customerName, shipping_address: shippingAddress }]);
+        setLoading(true);
+
+        try {
+            await axios.post(
+                `${API}/place-order`,
+                {
+                    items: cart,
+                    total,
+                    email,
+                    payment_method: paymentMethod,
+                    customer_name: customerName,
+                    shipping_address: shippingAddress
+                },
+                {
+                    headers: { "Content-Type": "application/json" },
+                    timeout: 30000
+                }
+            );
+
+            setOrders(prev => [
+                ...prev,
+                {
+                    items: cart,
+                    total,
+                    customer_name: customerName,
+                    shipping_address: shippingAddress,
+                    payment_method: paymentMethod
+                }
+            ]);
             setCart([]);
 
-            alert(`✅ Order Placed Successfully via ${paymentMethod}!`);
+            alert(`Order placed successfully via ${paymentMethod}!`);
         } catch (err) {
             console.error("Order failed", err);
-            alert("❌ Failed to place order: " + (err.response?.data?.msg || err.message));
+            alert("Failed to place order: " + (err.response?.data?.msg || err.message));
+        } finally {
+            setLoading(false);
         }
     };
-
 
     const paymentOptions = [
         { id: "card", name: "Credit/Debit Card", icon: "💳" },
@@ -126,26 +146,25 @@ export default function Checkout({ cart, setOrders, setCart }) {
 
             <button
                 onClick={placeOrder}
+                disabled={loading}
                 style={{
                     padding: "15px 20px",
-                    background: "black",
+                    background: loading ? "#666" : "black",
                     color: "white",
                     border: "none",
                     borderRadius: "0",
-                    cursor: "pointer",
+                    cursor: loading ? "not-allowed" : "pointer",
                     fontSize: "1rem",
                     fontWeight: "bold",
                     width: "100%",
                     letterSpacing: "1px"
                 }}
             >
-                PLACE ORDER NOW
+                {loading ? "PLACING ORDER..." : "PLACE ORDER NOW"}
             </button>
             <p style={{ textAlign: "center", marginTop: "15px", fontSize: "0.8rem", color: "#888" }}>
-                🔒 Secure SSL Encryption
+                Secure SSL Encryption
             </p>
         </div>
     );
 }
-
-

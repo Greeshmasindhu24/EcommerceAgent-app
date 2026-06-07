@@ -13,7 +13,7 @@ export default function CartCheckout({ cart, setCart, setOrders, user }) {
                 <Cart cart={cart} setCart={setCart} />
             </div>
             <div style={{ flex: 1, minWidth: "300px", borderLeft: "1px solid #eee", paddingLeft: "20px" }}>
-                <Checkout cart={cart} setOrders={setOrders} setCart={setCart} />
+                <Checkout cart={cart} setOrders={setOrders} setCart={setCart} user={user} />
             </div>
         </div>
     );
