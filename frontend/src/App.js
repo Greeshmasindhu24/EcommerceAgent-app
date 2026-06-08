@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-
+import api from "./api";
 import {
   BrowserRouter as Router,
   Routes,
@@ -23,10 +22,7 @@ import ChatAgent from "./components/ChatAgent";
 
 import "./index.css";
 
-// ✅ Backend URL
-const API = "http://127.0.0.1:5000";
 export default function App() {
-
   const [user, setUser] = useState(null);
 
   const [category, setCategory] = useState("all");
@@ -75,8 +71,8 @@ export default function App() {
 
     setLoadingProducts(true);
 
-    axios
-      .get(`${API}/products/${category}`)
+    api
+      .get(`/products/${category}`)
 
       .then((res) => {
 

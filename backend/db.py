@@ -109,12 +109,95 @@ def get_pool():
     return db_pool
 
 
+def reset_pool():
+    global db_pool
+    if db_pool is not None:
+        try:
+            db_pool.closeall()
+        except Exception:
+            pass
+        db_pool = None
+
+
+def _ping_conn(conn):
+    if conn.closed:
+        return False
+    try:
+        conn.rollback()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        return True
+    except (psycopg2.OperationalError, psycopg2.InterfaceError):
+        return False
+
+
 def get_conn():
-    return get_pool().getconn()
+    last_error = None
+    for attempt in range(3):
+        try:
+            conn = get_pool().getconn()
+            if _ping_conn(conn):
+                return conn
+            release_conn(conn, discard=True)
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+            last_error = exc
+            if attempt == 1:
+                reset_pool()
+    if last_error:
+        raise last_error
+    raise RuntimeError("Could not acquire a database connection")
 
 
-def release_conn(conn):
-    get_pool().putconn(conn)
+def release_conn(conn, discard=False):
+    if conn is None:
+        return
+    try:
+        if discard or conn.closed:
+            get_pool().putconn(conn, close=True)
+        else:
+            get_pool().putconn(conn)
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def with_db(callback, retries=2):
+    last_error = None
+    for attempt in range(retries):
+        conn = None
+        discard = False
+        try:
+            conn = get_conn()
+            cur = conn.cursor()
+            result = callback(cur, conn)
+            conn.commit()
+            return result
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+            last_error = exc
+            discard = True
+            if conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            if attempt < retries - 1:
+                reset_pool()
+                continue
+            raise
+        except Exception:
+            if conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            raise
+        finally:
+            if conn:
+                release_conn(conn, discard=discard)
+    if last_error:
+        raise last_error
 
 
 def get_backend():
@@ -164,9 +247,15 @@ def init_db():
             user_email TEXT,
             total_amount FLOAT,
             items JSONB,
+            payment_method TEXT,
+            customer_name TEXT,
+            shipping_address TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT;")
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name TEXT;")
+        cur.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT;")
 
         execute(cur, "SELECT COUNT(*) FROM products")
         count = cur.fetchone()[0]

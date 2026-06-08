@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom"; // ✅ FIXED
 
-// ✅ Backend URL
-const API = "https://ecommerceagent-app.onrender.com";
+// Backend URL
+const API = process.env.REACT_APP_API_URL || "https://ecommerceagent-app.onrender.com";
 
 export default function Register() {
     const [email, setEmail] = useState("");

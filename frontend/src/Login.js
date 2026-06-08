@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom"; // ✅ FIXED
 
-// ✅ Backend URL
-const API = "https://ecommerceagent-app.onrender.com";
+// Backend URL
+const API = process.env.REACT_APP_API_URL || "https://ecommerceagent-app.onrender.com";
 
 export default function Login({ setUser }) {
     const [email, setEmail] = useState("");
@@ -15,6 +15,7 @@ export default function Login({ setUser }) {
             const res = await axios.post(`${API}/login`, { email, password });
 
             localStorage.setItem("token", res.data.access_token);
+            localStorage.setItem("email", email);
             setUser({ email });
 
         } catch (err) {

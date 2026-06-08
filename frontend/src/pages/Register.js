@@ -1,9 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate, Link } from "react-router-dom"; // ✅ FIXED
-
-// ✅ Backend URL
-const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
+import api from "../api";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Register({ setUser }) {
     const [email, setEmail] = useState("");
@@ -22,10 +19,10 @@ export default function Register({ setUser }) {
         }
 
         try {
-            await axios.post(`${API}/register`, { email, password });
+            await api.post("/register", { email, password });
             
             // Auto login after register
-            const loginRes = await axios.post(`${API}/login`, { email, password });
+            const loginRes = await api.post("/login", { email, password });
             localStorage.setItem("token", loginRes.data.access_token);
             localStorage.setItem("email", email);
             

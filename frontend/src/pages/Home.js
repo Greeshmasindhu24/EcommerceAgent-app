@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 
-const API = "http://localhost:5000";
+const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
 
 export default function Home({ addToCart }) {
     const [products, setProducts] = useState([]);

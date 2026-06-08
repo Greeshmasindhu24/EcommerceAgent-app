@@ -8,9 +8,10 @@ from flask_jwt_extended import (
     create_access_token
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from psycopg2.extras import Json
 from google import genai
 
-from db import execute, get_conn, init_db, parse_items, release_conn
+from db import execute, get_conn, init_db, parse_items, release_conn, with_db
 from ai_chat import build_chat_prompt, generate_with_gemini, local_chat_reply
 
 # ================= LOAD ENV =================
@@ -21,7 +22,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # ================= APP =================
 app = Flask(__name__)
 
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 app.config["JWT_SECRET_KEY"] = os.getenv(
     "JWT_SECRET_KEY",
@@ -206,51 +207,50 @@ def login():
 # ================= PLACE ORDER =================
 @app.route("/place-order", methods=["POST"])
 def place_order():
-
     try:
-
-        data = request.json
+        data = request.get_json(silent=True) or {}
 
         items = data.get("items", [])
         total = data.get("total", 0)
-        email = data.get("email", "guest")
+        email = data.get("email") or "guest"
+        payment_method = data.get("payment_method") or "Credit/Debit Card"
+        customer_name = data.get("customer_name")
+        shipping_address = data.get("shipping_address")
 
-        if len(items) == 0:
-            return jsonify({
-                "msg": "Cart empty"
-            }), 400
+        if not isinstance(items, list) or len(items) == 0:
+            return jsonify({"msg": "Cart empty"}), 400
 
-        conn = get_conn()
+        if not email or email == "guest":
+            return jsonify({"msg": "Please login before placing an order"}), 401
 
-        try:
-            cur = conn.cursor()
-
+        def db_work(cur, conn):
             execute(cur, """
             INSERT INTO orders
-            (user_email, total_amount, items)
-            VALUES (%s, %s, %s)
+            (user_email, total_amount, items, payment_method, customer_name, shipping_address)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
             """, (
                 email,
-                total,
-                json.dumps(items)
+                float(total),
+                Json(items),
+                payment_method,
+                customer_name,
+                shipping_address,
             ))
+            return cur.fetchone()[0]
 
-            conn.commit()
-            cur.close()
-
-        finally:
-            release_conn(conn)
+        order_id = with_db(db_work)
 
         return jsonify({
-            "msg": "Order placed successfully"
-        })
+            "msg": "Order placed successfully",
+            "order_id": order_id,
+        }), 201
 
     except Exception as e:
-
         print("ORDER ERROR:", e)
-
         return jsonify({
-            "msg": "Failed to place order"
+            "msg": "Failed to place order",
+            "error": str(e),
         }), 500
 
 
@@ -366,6 +366,6 @@ def chat():
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
-        port=5000,
+        port=int(os.getenv("PORT", "5001")),
         debug=True
     )

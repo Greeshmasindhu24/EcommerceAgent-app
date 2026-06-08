@@ -1,17 +1,20 @@
-import React, { useState } from "react";
-import axios from "axios";
-
-const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
+import React, { useState, useEffect } from "react";
+import api, { placeOrder as submitOrder, wakeBackend } from "../api";
 
 export default function Checkout({ cart, setOrders, setCart, user }) {
     const [paymentMethod, setPaymentMethod] = useState("Credit/Debit Card");
     const [customerName, setCustomerName] = useState("");
     const [shippingAddress, setShippingAddress] = useState("");
     const [loading, setLoading] = useState(false);
+    const [backendReady, setBackendReady] = useState(true);
+
+    useEffect(() => {
+        wakeBackend().then(setBackendReady);
+    }, []);
 
     const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
 
-    const placeOrder = async () => {
+    const handlePlaceOrder = async () => {
         if (cart.length === 0) {
             alert("Cart is empty");
             return;
@@ -33,21 +36,14 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
         setLoading(true);
 
         try {
-            await axios.post(
-                `${API}/place-order`,
-                {
-                    items: cart,
-                    total,
-                    email,
-                    payment_method: paymentMethod,
-                    customer_name: customerName,
-                    shipping_address: shippingAddress
-                },
-                {
-                    headers: { "Content-Type": "application/json" },
-                    timeout: 30000
-                }
-            );
+            await submitOrder({
+                items: cart,
+                total,
+                email,
+                payment_method: paymentMethod,
+                customer_name: customerName,
+                shipping_address: shippingAddress
+            });
 
             setOrders(prev => [
                 ...prev,
@@ -64,7 +60,13 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
             alert(`Order placed successfully via ${paymentMethod}!`);
         } catch (err) {
             console.error("Order failed", err);
-            alert("Failed to place order: " + (err.response?.data?.msg || err.message));
+            let message = err.response?.data?.msg || err.message;
+            if (!err.response && (err.code === "ECONNABORTED" || err.message?.includes("timeout"))) {
+                message = "Server is waking up on Render. Please wait a moment and try again.";
+            } else if (!err.response) {
+                message = "Network error — make sure the backend is running (local: port 5001, deployed: Render URL).";
+            }
+            alert("Failed to place order: " + message);
         } finally {
             setLoading(false);
         }
@@ -80,6 +82,11 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
     return (
         <div style={{ padding: "30px", background: "white", borderRadius: "10px", border: "1px solid #eee" }}>
             <h2 style={{ marginBottom: "25px" }}>Secure Checkout</h2>
+            {!backendReady && (
+                <p style={{ color: "#856404", background: "#fff3cd", padding: "10px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.9rem" }}>
+                    Waking up server — first request on Render can take up to 60 seconds.
+                </p>
+            )}
 
             <div style={{ marginBottom: "30px" }}>
                 <p style={{ fontWeight: "600", marginBottom: "15px", fontSize: "0.9rem", color: "#666", textTransform: "uppercase" }}>Shipping Details</p>
@@ -145,7 +152,7 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
             </div>
 
             <button
-                onClick={placeOrder}
+                onClick={handlePlaceOrder}
                 disabled={loading}
                 style={{
                     padding: "15px 20px",
