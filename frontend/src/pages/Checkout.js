@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api, { placeOrder as submitOrder, wakeBackend } from "../api";
+import api, { placeOrder as submitOrder, wakeBackend, getApiUrl } from "../api";
 
 export default function Checkout({ cart, setOrders, setCart, user }) {
     const [paymentMethod, setPaymentMethod] = useState("Credit/Debit Card");
@@ -9,7 +9,11 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
     const [backendReady, setBackendReady] = useState(true);
 
     useEffect(() => {
-        wakeBackend().then(setBackendReady);
+        let cancelled = false;
+        wakeBackend().then((ready) => {
+            if (!cancelled) setBackendReady(ready);
+        });
+        return () => { cancelled = true; };
     }, []);
 
     const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
@@ -36,6 +40,7 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
         setLoading(true);
 
         try {
+            await wakeBackend();
             await submitOrder({
                 items: cart,
                 total,
@@ -61,10 +66,12 @@ export default function Checkout({ cart, setOrders, setCart, user }) {
         } catch (err) {
             console.error("Order failed", err);
             let message = err.response?.data?.msg || err.message;
-            if (!err.response && (err.code === "ECONNABORTED" || err.message?.includes("timeout"))) {
-                message = "Server is waking up on Render. Please wait a moment and try again.";
+            if (err.response?.status === 401) {
+                message = "Please log in again before placing an order.";
+            } else if (!err.response && (err.code === "ECONNABORTED" || err.message?.includes("timeout"))) {
+                message = "Render server is waking up (can take 60s). Wait, then try again.";
             } else if (!err.response) {
-                message = "Network error — make sure the backend is running (local: port 5001, deployed: Render URL).";
+                message = `Cannot reach backend at ${getApiUrl()}. Check Render backend is running.`;
             }
             alert("Failed to place order: " + message);
         } finally {
