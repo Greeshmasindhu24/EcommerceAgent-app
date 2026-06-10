@@ -1,94 +1,197 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import ProductCard from "../components/ProductCard";
 
-const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
+const CATEGORIES = ["all", "mobiles", "laptops", "electronics", "fashion", "beauty", "gaming"];
 
-export default function Home({ addToCart }) {
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+const CATEGORY_LABELS = {
+  all: "All",
+  mobiles: "Mobiles",
+  laptops: "Laptops",
+  electronics: "Electronics",
+  fashion: "Fashion",
+  beauty: "Beauty",
+  gaming: "Gaming",
+};
 
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const res = await axios.get(`${API}/products/all`);
-                setProducts(res.data);
-            } catch (err) {
-                console.error("Error fetching products", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProducts();
-    }, []);
+const CATEGORY_IMAGES = {
+  all: "https://images.unsplash.com/photo-1441984904996-e0b6a6876864?w=800&q=80",
+  mobiles: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
+  laptops: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80",
+  electronics: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=800&q=80",
+  fashion: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80",
+  beauty: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80",
+  gaming: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80",
+};
 
-    return (
-        <div>
-            {/* Hero Section */}
-            <header className="hero" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1576905341935-40dc1bd953e1?w=1600")' }}>
-                <div className="hero-content">
-                    <p className="hero-subtitle">NEW COLLECTION 2026</p>
-                    <h1 className="hero-title">Style Redefined</h1>
-                    <p className="hero-description">
-                        Discover our highly curated collection of premium essentials tailored for your unique aesthetic.
-                    </p>
-                    <div className="hero-btns">
-                        <Link to="/products/all" className="btn-white">Shop Now</Link>
-                        <button className="btn-outline-white">Learn More</button>
-                    </div>
-                </div>
-            </header>
+const TESTIMONIALS = [
+  {
+    quote: "The build quality of the headphones is exceptional. Minimalist design paired with incredible sound.",
+    initials: "JD",
+    name: "John Doe",
+    role: "Verified Buyer",
+    color: "indigo",
+    stars: 5,
+  },
+  {
+    quote: "The smart watch completely changed my workflow. It's sleek, responsive, and looks amazing.",
+    initials: "AS",
+    name: "Alice Smith",
+    role: "Tech Reviewer",
+    color: "purple",
+    stars: 5,
+  },
+  {
+    quote: "Customer service was fantastic. They helped me choose the right VR headset. Highly recommend!",
+    initials: "MB",
+    name: "Marcus Brown",
+    role: "Designer",
+    color: "emerald",
+    stars: 4,
+  },
+];
 
-            {/* Product Section */}
-            <div className="container" style={{ paddingBottom: "100px" }}>
-                <h2 style={{ fontSize: "2rem", marginBottom: "40px", textAlign: "center" }}>Featured Collection</h2>
+export default function Home({ products, addToCart, category, setCategory, loading }) {
+  const { category: routeCategory } = useParams();
+  const [sortBy, setSortBy] = useState("default");
 
-                {loading ? (
-                    <div style={{ textAlign: "center", padding: "50px" }}>Loading products...</div>
-                ) : (
-                    <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "30px" }}>
-                        {products.map(p => (
-                            <div key={p.id} className="card" style={{ padding: "0" }}>
-                                <div style={{ height: "350px", overflow: "hidden", position: "relative" }}>
-                                    <img src={p.image} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.5s ease" }} />
-                                    <div style={{
-                                        position: "absolute",
-                                        bottom: "20px",
-                                        left: "50%",
-                                        transform: "translateX(-50%)",
-                                        width: "80%",
-                                        opacity: 0,
-                                        transition: "all 0.3s ease",
-                                        className: "card-action-btn"
-                                    }}>
-                                    </div>
-                                </div>
-                                <div style={{ padding: "20px", textAlign: "center" }}>
-                                    <p style={{ fontSize: "0.8rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "5px" }}>{p.category}</p>
-                                    <h3 style={{ fontSize: "1.1rem", marginBottom: "10px" }}>{p.name}</h3>
-                                    <p style={{ fontWeight: "bold", fontSize: "1.2rem" }}>₹{p.price.toLocaleString()}</p>
-                                    <button
-                                        onClick={() => addToCart(p)}
-                                        style={{
-                                            marginTop: "15px",
-                                            padding: "10px 20px",
-                                            background: "black",
-                                            color: "white",
-                                            borderRadius: "0",
-                                            width: "100%",
-                                            fontWeight: "bold",
-                                            letterSpacing: "1px"
-                                        }}
-                                    >
-                                        ADD TO CART
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+  useEffect(() => {
+    if (routeCategory) {
+      setCategory(routeCategory);
+    }
+  }, [routeCategory, setCategory]);
+
+  const sortedProducts = [...(products || [])].sort((a, b) => {
+    if (sortBy === "price-low") return a.price - b.price;
+    if (sortBy === "price-high") return b.price - a.price;
+    return 0;
+  });
+
+  const premiumProducts = sortedProducts.slice(0, 4);
+
+  return (
+    <div className="storefront">
+      <section className="store-promo">
+        <div className="container store-promo-inner">
+          <div>
+            <p className="store-promo-tag">Premium Collection 2026</p>
+            <h1>Style — Online Shopping</h1>
+            <p>Discover our premium collection of mobiles, laptops, fashion, and more — shop and checkout in one place.</p>
+          </div>
+          <div className="store-promo-badge">Free delivery on orders above ₹5,000</div>
         </div>
-    );
-}
+      </section>
 
+      <section className="section container">
+        <div className="section-header">
+          <h2>Shop by Category</h2>
+        </div>
+        <div className="categories-grid">
+          {CATEGORIES.filter((cat) => cat !== "all").map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={`category-card ${category === cat ? "active" : ""}`}
+              onClick={() => setCategory(cat)}
+            >
+              <img src={CATEGORY_IMAGES[cat]} alt={CATEGORY_LABELS[cat]} />
+              <div className="category-overlay">
+                <div>
+                  <h3>{CATEGORY_LABELS[cat]}</h3>
+                  <span>Explore Collection →</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {!loading && premiumProducts.length > 0 && category === "all" && (
+        <section id="premium-collection" className="section container" style={{ borderTop: "1px solid var(--aura-border)" }}>
+          <div className="section-row">
+            <div>
+              <h2>Premium Collection</h2>
+              <p>Our top picks for this season.</p>
+            </div>
+          </div>
+          <div className="products-grid" style={{ paddingTop: 0 }}>
+            {premiumProducts.map((product) => (
+              <ProductCard key={`premium-${product.id}`} product={product} onAddToCart={addToCart} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="container store-section">
+        <div className="store-toolbar">
+          <div>
+            <h2 className="store-section-title" style={{ marginBottom: 4 }}>
+              {category === "all" ? "All Products" : CATEGORY_LABELS[category]}
+            </h2>
+            <p className="store-count">{(products || []).length} items</p>
+          </div>
+          <select className="store-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="default">Default Sorting</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+          </select>
+        </div>
+
+        <div className="filter-bar">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={`btn ${category === cat ? "btn-primary" : "btn-outline"}`}
+              onClick={() => setCategory(cat)}
+            >
+              {CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="loading-state">Loading products...</div>
+        ) : sortedProducts.length === 0 ? (
+          <div className="empty-state">No products found in this category.</div>
+        ) : (
+          <div className="products-grid">
+            {sortedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} onAddToCart={addToCart} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="testimonials-section section">
+        <div className="container">
+          <div className="section-header">
+            <h2>What Our Customers Say</h2>
+          </div>
+          <div className="testimonials-grid">
+            {TESTIMONIALS.map((item) => (
+              <div key={item.name} className="testimonial-card">
+                <div className="testimonial-stars">{"★".repeat(item.stars)}{item.stars < 5 ? "☆" : ""}</div>
+                <p className="testimonial-text">&ldquo;{item.quote}&rdquo;</p>
+                <div className="testimonial-author">
+                  <div className={`author-avatar ${item.color}`}>{item.initials}</div>
+                  <div>
+                    <h4>{item.name}</h4>
+                    <span>{item.role}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="container" style={{ paddingBottom: "48px" }}>
+        <div className="ai-banner ai-banner-compact">
+          <h2>Style AI Assistant</h2>
+          <p>Ask about products, orders, or support using the chat button below.</p>
+        </div>
+      </section>
+    </div>
+  );
+}

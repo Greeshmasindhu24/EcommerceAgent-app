@@ -1,184 +1,190 @@
 import React, { useState, useEffect } from "react";
-import api, { placeOrder as submitOrder, wakeBackend, getApiUrl } from "../api";
+import { placeOrder as submitOrder, wakeBackend, getApiUrl } from "../api";
 
 export default function Checkout({ cart, setOrders, setCart, user }) {
-    const [paymentMethod, setPaymentMethod] = useState("Credit/Debit Card");
-    const [customerName, setCustomerName] = useState("");
-    const [shippingAddress, setShippingAddress] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [backendReady, setBackendReady] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState("Credit Card");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [backendReady, setBackendReady] = useState(true);
 
-    useEffect(() => {
-        let cancelled = false;
-        wakeBackend().then((ready) => {
-            if (!cancelled) setBackendReady(ready);
-        });
-        return () => { cancelled = true; };
-    }, []);
+  useEffect(() => {
+    let cancelled = false;
+    wakeBackend().then((ready) => {
+      if (!cancelled) setBackendReady(ready);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
-    const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
+  const total = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
+  const customerName = `${firstName} ${lastName}`.trim();
+  const shippingAddress = [address, city, zipCode].filter(Boolean).join(", ");
 
-    const handlePlaceOrder = async () => {
-        if (cart.length === 0) {
-            alert("Cart is empty");
-            return;
-        }
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) {
+      alert("Cart is empty");
+      return;
+    }
+    if (!firstName.trim() || !lastName.trim() || !address.trim() || !city.trim() || !zipCode.trim()) {
+      alert("Please fill in all shipping details: first name, last name, address, city, and ZIP code.");
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please login to place an order");
+      return;
+    }
 
-        if (!customerName.trim() || !shippingAddress.trim()) {
-            alert("Please provide your name and shipping address");
-            return;
-        }
+    const email = user?.email || localStorage.getItem("email") || "guest";
+    setLoading(true);
 
-        const token = localStorage.getItem("token");
-        if (!token) {
-            alert("Please login to place an order");
-            return;
-        }
+    try {
+      await wakeBackend();
+      await submitOrder({
+        items: cart,
+        total,
+        email,
+        payment_method: paymentMethod,
+        customer_name: customerName,
+        shipping_address: shippingAddress,
+      });
 
-        const email = user?.email || localStorage.getItem("email") || "guest";
+      setOrders((prev) => [
+        ...prev,
+        {
+          items: cart,
+          total,
+          customer_name: customerName,
+          shipping_address: shippingAddress,
+          payment_method: paymentMethod,
+        },
+      ]);
+      setCart([]);
+      alert(`Order placed successfully via ${paymentMethod}!`);
+    } catch (err) {
+      console.error("Order failed", err);
+      let message = err.response?.data?.msg || err.message;
+      if (err.response?.status === 401) {
+        message = "Please log in again before placing an order.";
+      } else if (!err.response && (err.code === "ECONNABORTED" || err.message?.includes("timeout"))) {
+        message = "Render server is waking up (can take 60s). Wait, then try again.";
+      } else if (!err.response) {
+        message = `Cannot reach backend at ${getApiUrl()}. Check Render backend is running.`;
+      }
+      alert("Failed to place order: " + message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setLoading(true);
-
-        try {
-            await wakeBackend();
-            await submitOrder({
-                items: cart,
-                total,
-                email,
-                payment_method: paymentMethod,
-                customer_name: customerName,
-                shipping_address: shippingAddress
-            });
-
-            setOrders(prev => [
-                ...prev,
-                {
-                    items: cart,
-                    total,
-                    customer_name: customerName,
-                    shipping_address: shippingAddress,
-                    payment_method: paymentMethod
-                }
-            ]);
-            setCart([]);
-
-            alert(`Order placed successfully via ${paymentMethod}!`);
-        } catch (err) {
-            console.error("Order failed", err);
-            let message = err.response?.data?.msg || err.message;
-            if (err.response?.status === 401) {
-                message = "Please log in again before placing an order.";
-            } else if (!err.response && (err.code === "ECONNABORTED" || err.message?.includes("timeout"))) {
-                message = "Render server is waking up (can take 60s). Wait, then try again.";
-            } else if (!err.response) {
-                message = `Cannot reach backend at ${getApiUrl()}. Check Render backend is running.`;
-            }
-            alert("Failed to place order: " + message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const paymentOptions = [
-        { id: "card", name: "Credit/Debit Card", icon: "💳" },
-        { id: "gpay", name: "Google Pay", icon: "📱" },
-        { id: "phonepe", name: "PhonePe", icon: "💜" },
-        { id: "cod", name: "Cash on Delivery", icon: "💵" }
-    ];
-
-    return (
-        <div style={{ padding: "30px", background: "white", borderRadius: "10px", border: "1px solid #eee" }}>
-            <h2 style={{ marginBottom: "25px" }}>Secure Checkout</h2>
-            {!backendReady && (
-                <p style={{ color: "#856404", background: "#fff3cd", padding: "10px", borderRadius: "6px", marginBottom: "16px", fontSize: "0.9rem" }}>
-                    Waking up server — first request on Render can take up to 60 seconds.
-                </p>
-            )}
-
-            <div style={{ marginBottom: "30px" }}>
-                <p style={{ fontWeight: "600", marginBottom: "15px", fontSize: "0.9rem", color: "#666", textTransform: "uppercase" }}>Shipping Details</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                    <input
-                        type="text"
-                        placeholder="Full Name"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        style={{ padding: "12px", border: "1px solid #ddd", borderRadius: "5px", fontSize: "0.95rem" }}
-                    />
-                    <textarea
-                        placeholder="Shipping Address"
-                        value={shippingAddress}
-                        onChange={(e) => setShippingAddress(e.target.value)}
-                        style={{ padding: "12px", border: "1px solid #ddd", borderRadius: "5px", fontSize: "0.95rem", minHeight: "80px", fontFamily: "inherit" }}
-                    />
-                </div>
-            </div>
-
-            <div style={{ marginBottom: "30px" }}>
-                <p style={{ fontWeight: "600", marginBottom: "15px", fontSize: "0.9rem", color: "#666", textTransform: "uppercase" }}>Order Summary</p>
-                {cart.map(i => (
-                    <div key={i.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "0.95rem" }}>
-                        <span>{i.name} <small>x{i.qty || 1}</small></span>
-                        <span>₹{((i.price) * (i.qty || 1)).toLocaleString()}</span>
-                    </div>
-                ))}
-            </div>
-
-            <div style={{ borderTop: "2px solid #000", paddingTop: "15px", marginBottom: "30px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "1.1rem", fontWeight: "600" }}>Total Amount</span>
-                    <b style={{ fontSize: "1.5rem" }}>₹{total.toLocaleString()}</b>
-                </div>
-            </div>
-
-            <div style={{ marginBottom: "30px" }}>
-                <p style={{ fontWeight: "600", marginBottom: "15px", fontSize: "0.9rem", color: "#666", textTransform: "uppercase" }}>Select Payment Method</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {paymentOptions.map(opt => (
-                        <div
-                            key={opt.id}
-                            onClick={() => setPaymentMethod(opt.name)}
-                            style={{
-                                padding: "12px 15px",
-                                border: paymentMethod === opt.name ? "2px solid #000" : "1px solid #eee",
-                                borderRadius: "5px",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "15px",
-                                cursor: "pointer",
-                                transition: "all 0.2s ease",
-                                background: paymentMethod === opt.name ? "#f9f9f9" : "white"
-                            }}
-                        >
-                            <span style={{ fontSize: "1.2rem" }}>{opt.icon}</span>
-                            <b style={{ flex: 1 }}>{opt.name}</b>
-                            {paymentMethod === opt.name && <span>✓</span>}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <button
-                onClick={handlePlaceOrder}
-                disabled={loading}
-                style={{
-                    padding: "15px 20px",
-                    background: loading ? "#666" : "black",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "0",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    fontSize: "1rem",
-                    fontWeight: "bold",
-                    width: "100%",
-                    letterSpacing: "1px"
-                }}
-            >
-                {loading ? "PLACING ORDER..." : "PLACE ORDER NOW"}
-            </button>
-            <p style={{ textAlign: "center", marginTop: "15px", fontSize: "0.8rem", color: "#888" }}>
-                Secure SSL Encryption
-            </p>
+  return (
+    <div className="glass-panel cart-summary">
+      <h2 className="checkout-page-title">Checkout</h2>
+      {!backendReady && (
+        <div className="form-error" style={{ textAlign: "left" }}>
+          Waking up server — first request on Render can take up to 60 seconds.
         </div>
-    );
+      )}
+
+      <h3 className="checkout-step-title">1. Shipping Details</h3>
+      <div className="form-row-2">
+        <div className="form-group">
+          <label htmlFor="first-name">First Name</label>
+          <input
+            id="first-name"
+            type="text"
+            placeholder="First name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            autoComplete="given-name"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="last-name">Last Name</label>
+          <input
+            id="last-name"
+            type="text"
+            placeholder="Last name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            autoComplete="family-name"
+          />
+        </div>
+      </div>
+      <div className="form-group">
+        <label htmlFor="address">Address</label>
+        <input
+          id="address"
+          type="text"
+          placeholder="Street address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          autoComplete="street-address"
+        />
+      </div>
+      <div className="form-row-2">
+        <div className="form-group">
+          <label htmlFor="city">City</label>
+          <input
+            id="city"
+            type="text"
+            placeholder="City"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            autoComplete="address-level2"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="zip">ZIP / Postal Code</label>
+          <input
+            id="zip"
+            type="text"
+            placeholder="ZIP / Postal Code"
+            value={zipCode}
+            onChange={(e) => setZipCode(e.target.value)}
+            autoComplete="postal-code"
+          />
+        </div>
+      </div>
+
+      <h3 className="checkout-step-title" style={{ marginTop: "24px" }}>2. Payment Method</h3>
+      <div className="payment-options">
+        {["Credit Card", "PayPal", "Cash on Delivery"].map((method) => (
+          <button
+            key={method}
+            type="button"
+            className={`payment-option ${paymentMethod === method ? "active" : ""}`}
+            onClick={() => setPaymentMethod(method)}
+          >
+            {method}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: "32px" }}>
+        <h3 className="checkout-step-title">Order Summary</h3>
+        {cart.map((item) => (
+          <div key={item.id} className="summary-row">
+            <span>{item.name} × {item.qty || 1}</span>
+            <span>₹{((item.price) * (item.qty || 1)).toLocaleString()}</span>
+          </div>
+        ))}
+        <div className="summary-row">
+          <span>Shipping</span>
+          <span>Free</span>
+        </div>
+        <div className="summary-total">
+          <span>Total</span>
+          <span>₹{total.toLocaleString()}</span>
+        </div>
+      </div>
+
+      <button type="button" className="btn btn-primary checkout-btn" onClick={handlePlaceOrder} disabled={loading}>
+        {loading ? "Processing..." : "Place Order"}
+      </button>
+    </div>
+  );
 }

@@ -1,88 +1,86 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
 
-export default function Dashboard({ user }) {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
+export default function Dashboard({ user, onLogout }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchOrders = async () => {
-            const email = user?.email || localStorage.getItem("email");
-            if (!email) {
-                setLoading(false);
-                return;
-            }
+  useEffect(() => {
+    const fetchOrders = async () => {
+      const email = user?.email || localStorage.getItem("email");
+      if (!email) {
+        setLoading(false);
+        return;
+      }
 
-            try {
-                const res = await axios.get(`${API}/orders/${encodeURIComponent(email)}`);
-                setOrders(res.data || []);
-            } catch (err) {
-                console.error("Failed to fetch orders", err);
-            } finally {
-                setLoading(false);
-            }
-        };
+      try {
+        const res = await axios.get(`${API}/orders/${encodeURIComponent(email)}`);
+        setOrders(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch orders", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        fetchOrders();
-    }, [user]);
+    fetchOrders();
+  }, [user]);
 
-    return (
-        <div style={{ padding: "40px 20px", maxWidth: "1000px", margin: "0 auto" }}>
-            <h1 style={{ marginBottom: "10px" }}>My Account</h1>
-            <div style={{
-                background: "var(--card-bg)",
-                padding: "20px",
-                borderRadius: "12px",
-                border: "1px solid var(--border-color)",
-                marginBottom: "40px"
-            }}>
-                <h3 style={{ margin: 0 }}>Email: <span style={{ color: "var(--primary-color)" }}>{user?.email}</span></h3>
+  const handleSignOut = () => {
+    if (onLogout) onLogout();
+    navigate("/login");
+  };
+
+  return (
+    <div className="container" style={{ padding: "48px 24px" }}>
+      <div className="account-header">
+        <h1 className="checkout-page-title" style={{ margin: 0 }}>Your Account</h1>
+        <button type="button" className="btn btn-outline" onClick={handleSignOut}>Sign Out</button>
+      </div>
+
+      <div className="glass-panel profile-card">
+        <h3>Profile</h3>
+        <p>Email: <strong>{user?.email || localStorage.getItem("email") || "Not available"}</strong></p>
+      </div>
+
+      <h2 style={{ fontFamily: "var(--font-display)", marginBottom: "24px" }}>Order History</h2>
+
+      {loading ? (
+        <div className="loading-state">Loading orders...</div>
+      ) : orders.length === 0 ? (
+        <div className="empty-state glass-panel">You haven&apos;t placed any orders yet.</div>
+      ) : (
+        orders.map((order) => (
+          <div key={order.id} className="glass-panel order-card">
+            <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--aura-border)", paddingBottom: "12px", marginBottom: "16px" }}>
+              <span>Order <strong>#{order.id}</strong></span>
+              <span style={{ color: "var(--aura-muted)", fontSize: "0.875rem" }}>
+                {order.created_at ? new Date(order.created_at).toLocaleDateString() : "—"}
+              </span>
             </div>
-
-            <h2 style={{ marginBottom: "20px" }}>Order History</h2>
-
-            {loading ? (
-                <p>Loading orders...</p>
-            ) : orders.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px", background: "var(--card-bg)", borderRadius: "12px" }}>
-                    <p>You haven't placed any orders yet.</p>
-                </div>
-            ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                    {orders.map((o) => (
-                        <div key={o.id} style={{
-                            background: "var(--card-bg)",
-                            border: "1px solid var(--border-color)",
-                            padding: "20px",
-                            borderRadius: "12px",
-                            boxShadow: "0 4px 6px rgba(0,0,0,0.05)"
-                        }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px", borderBottom: "1px solid var(--border-color)", paddingBottom: "10px" }}>
-                                <span>Order <b>#{o.id}</b></span>
-                                <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-                                    {o.created_at ? new Date(o.created_at).toLocaleDateString() : "—"}
-                                </span>
-                            </div>
-
-                            <div style={{ marginBottom: "15px" }}>
-                                {(o.items || []).map((i, idx) => (
-                                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                                        <span>{i.name} <small style={{ color: "var(--text-secondary)" }}>x{i.qty || 1}</small></span>
-                                        <span>₹{((i.price) * (i.qty || 1)).toLocaleString()}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "15px", paddingTop: "10px", borderTop: "1px dashed var(--border-color)" }}>
-                                <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>Status: Confirmed</span>
-                                <b style={{ fontSize: "1.2rem", color: "var(--primary-color)" }}>Total: ₹{o.total.toLocaleString()}</b>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+            {(order.customer_name || order.shipping_address) && (
+              <div style={{ marginBottom: "16px", color: "var(--aura-text)", fontSize: "0.95rem" }}>
+                {order.customer_name && <div><strong>Customer:</strong> {order.customer_name}</div>}
+                {order.shipping_address && <div><strong>Delivery Address:</strong> {order.shipping_address}</div>}
+              </div>
             )}
-        </div>
-    );
+            {(order.items || []).map((item, idx) => (
+              <div key={idx} className="summary-row">
+                <span>{item.name} × {item.qty || 1}</span>
+                <span>₹{((item.price) * (item.qty || 1)).toLocaleString()}</span>
+              </div>
+            ))}
+            <div className="summary-total">
+              <span>Total</span>
+              <span>₹{order.total.toLocaleString()}</span>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }

@@ -1,70 +1,87 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 
 const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
 
 export default function ProductList({ addToCart }) {
-    const { category } = useParams();
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const { category } = useParams();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState("default");
 
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const res = await axios.get(`${API}/products/${category}`);
-                setProducts(res.data);
-            } catch (err) {
-                console.error("Error fetching products", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProducts();
-    }, [category]);
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const res = await axios.get(`${API}/products/${category}`);
+        setProducts(res.data || []);
+      } catch (err) {
+        console.error("Error fetching products", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [category]);
 
-    if (loading) return <div style={{ padding: "50px", textAlign: "center" }}>Loading {category}...</div>;
+  const sortedProducts = [...products].sort((a, b) => {
+    if (sortBy === "price-low") return a.price - b.price;
+    if (sortBy === "price-high") return b.price - a.price;
+    return 0;
+  });
 
-    return (
-        <div style={{ padding: "20px" }}>
-            <h1 style={{ textAlign: "center", marginBottom: "30px", textTransform: "capitalize" }}>{category}</h1>
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-                gap: "20px"
-            }}>
-                {products.length === 0 ? (
-                    <p style={{ textAlign: "center", gridColumn: "1 / -1" }}>No products found in this category.</p>
-                ) : (
-                    products.map(p => (
-                        <div key={p.id} style={{
-                            border: "1px solid #ddd",
-                            padding: "15px",
-                            borderRadius: "10px",
-                            textAlign: "center",
-                            background: "white",
-                            boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-                        }}>
-                            <img src={p.image} alt={p.name} style={{ width: "100%", height: "200px", objectFit: "cover", borderRadius: "5px" }} />
-                            <h3>{p.name}</h3>
-                            <p style={{ fontWeight: "bold", fontSize: "1.2rem", color: "#2874f0" }}>₹{p.price}</p>
-                            <button
-                                onClick={() => addToCart(p)}
-                                style={{
-                                    padding: "8px 15px",
-                                    background: "#fb641b",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "3px",
-                                    cursor: "pointer"
-                                }}
-                            >
-                                Add to Cart
-                            </button>
-                        </div>
-                    ))
-                )}
-            </div>
+  if (loading) {
+    return <div className="loading-state">Loading {category}...</div>;
+  }
+
+  return (
+    <div className="container">
+      <div className="page-header">
+        <Link to="/products/all" className="link-accent" style={{ display: "inline-block", marginBottom: "12px" }}>
+          ← Back to Shop
+        </Link>
+        <h1 style={{ textTransform: "capitalize" }}>All Products ({products.length})</h1>
+        <div style={{ marginTop: "20px" }}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              padding: "10px 16px",
+              border: "1px solid var(--aura-border)",
+              borderRadius: "8px",
+              fontFamily: "inherit",
+              background: "white",
+            }}
+          >
+            <option value="default">Default Sorting</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+          </select>
         </div>
-    );
+      </div>
+
+      {sortedProducts.length === 0 ? (
+        <div className="empty-state">No products found in this category.</div>
+      ) : (
+        <div className="products-grid">
+          {sortedProducts.map((p) => (
+            <div key={p.id} className="product-card card">
+              <img src={p.image} alt={p.name} className="product-image" />
+              <div className="product-info">
+                <span className="product-category">{p.category}</span>
+                <h3 className="product-title">{p.name}</h3>
+                <div className="product-footer">
+                  <span className="product-price">₹{p.price.toLocaleString()}</span>
+                  <button type="button" className="btn btn-primary" style={{ padding: "8px 16px", fontSize: "0.875rem" }} onClick={() => addToCart(p)}>
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
