@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "./api";
+import api, { wakeBackend } from "./api";
 import {
   BrowserRouter as Router,
   Routes,
@@ -30,6 +30,7 @@ export default function App() {
   });
   const [orders, setOrders] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productsError, setProductsError] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -44,12 +45,43 @@ export default function App() {
   }, [cart]);
 
   useEffect(() => {
-    setLoadingProducts(true);
-    api
-      .get(`/products/${category}`)
-      .then((res) => setProducts(res.data || []))
-      .catch((err) => console.error("Error fetching products:", err))
-      .finally(() => setLoadingProducts(false));
+    let cancelled = false;
+
+    const fetchProducts = async () => {
+      setLoadingProducts(true);
+      setProductsError("");
+
+      const load = async () => {
+        const res = await api.get(`/products/${category}`);
+        return res.data || [];
+      };
+
+      try {
+        const data = await load();
+        if (!cancelled) setProducts(data);
+      } catch (err) {
+        try {
+          await wakeBackend();
+          const data = await load();
+          if (!cancelled) setProducts(data);
+        } catch (retryErr) {
+          if (!cancelled) {
+            setProducts([]);
+            setProductsError(
+              "Unable to load products. Make sure the backend is running (python app.py in backend folder)."
+            );
+            console.error("Error fetching products:", retryErr || err);
+          }
+        }
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+    return () => {
+      cancelled = true;
+    };
   }, [category]);
 
   const addToCart = (product) => {
@@ -85,6 +117,7 @@ export default function App() {
       category={category}
       setCategory={setCategory}
       loading={loadingProducts}
+      error={productsError}
     />
   );
 

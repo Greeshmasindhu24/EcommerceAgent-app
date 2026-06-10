@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
-
-const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:5001";
+import api from "../api";
 
 export default function ChatAgent() {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,14 +27,10 @@ export default function ChatAgent() {
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        `${API}/chat`,
-        {
-          message: currentInput,
-          email: localStorage.getItem("email") || null,
-        },
-        { timeout: 30000, headers: { "Content-Type": "application/json" } }
-      );
+      const res = await api.post("/chat", {
+        message: currentInput,
+        email: localStorage.getItem("email") || null,
+      });
 
       const reply = res?.data?.reply || "Sorry, I couldn't understand that.";
       setMessages((prev) => [...prev, { text: reply, sender: "bot" }]);

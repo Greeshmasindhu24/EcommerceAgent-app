@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from psycopg2.extras import Json
 from google import genai
 
-from db import execute, get_conn, init_db, parse_items, release_conn, with_db
+from db import execute, get_conn, init_db, parse_items, release_conn, seed_products_if_empty, with_db
 from ai_chat import build_chat_prompt, generate_with_gemini, local_chat_reply
 
 # ================= LOAD ENV =================
@@ -81,7 +81,6 @@ def db_status():
 # ================= PRODUCTS =================
 @app.route("/products/<category>")
 def products(category):
-
     conn = get_conn()
 
     try:
@@ -98,6 +97,11 @@ def products(category):
 
         rows = cur.fetchall()
 
+        if category == "all" and len(rows) == 0:
+            seed_products_if_empty(cur, conn)
+            execute(cur, "SELECT * FROM products")
+            rows = cur.fetchall()
+
         result = []
 
         for r in rows:
@@ -113,6 +117,13 @@ def products(category):
         cur.close()
 
         return jsonify(result)
+
+    except Exception as exc:
+        print("PRODUCTS ERROR:", exc)
+        return jsonify({
+            "msg": "Failed to load products",
+            "error": str(exc),
+        }), 500
 
     finally:
         release_conn(conn)

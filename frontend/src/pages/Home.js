@@ -41,7 +41,7 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function Home({ products, addToCart, category, setCategory, loading }) {
+export default function Home({ products, addToCart, category, setCategory, loading, error }) {
   const { category: routeCategory } = useParams();
   const [sortBy, setSortBy] = useState("default");
 
@@ -118,6 +118,8 @@ export default function Home({ products, addToCart, category, setCategory, loadi
 
         {loading ? (
           <div className="loading-state">Loading products...</div>
+        ) : error ? (
+          <div className="empty-state" style={{ color: "var(--aura-danger)" }}>{error}</div>
         ) : sortedProducts.length === 0 ? (
           <div className="empty-state">No products found in this category.</div>
         ) : (

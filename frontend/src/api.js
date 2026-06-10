@@ -1,31 +1,38 @@
 import axios from 'axios';
 
-const LOCAL_API = 'http://127.0.0.1:5001';
-const PROD_API = 'https://ecommercesingleagentapp.onrender.com';
+const DEFAULT_RENDER_API = 'https://ecommercesingleagentapp.onrender.com';
+const LOCAL_PORT = 5001;
 
-function isLocalHost() {
-  if (typeof window === 'undefined') return true;
-  const host = window.location.hostname;
-  return host === 'localhost' || host === '127.0.0.1';
+function isPrivateLanHost(hostname) {
+  return (
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)
+    || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)
+    || /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
 }
 
 function isLocalUrl(url) {
   return !url || url.includes('127.0.0.1') || url.includes('localhost');
 }
 
+/** Pick API base URL for laptop, phone on Wi‑Fi, or live Render deployment. */
 export function getApiUrl() {
-  const envUrl = process.env.REACT_APP_API_URL?.replace(/\/$/, '');
+  const envUrl = (process.env.REACT_APP_API_URL || '').trim().replace(/\/$/, '');
+  const { protocol, hostname } = window.location;
 
-  if (isLocalHost()) {
-    return envUrl || LOCAL_API;
-  }
-
-  // On Render/production — never call localhost from the browser
   if (envUrl && !isLocalUrl(envUrl)) {
     return envUrl;
   }
 
-  return PROD_API;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return envUrl || `http://127.0.0.1:${LOCAL_PORT}`;
+  }
+
+  if (isPrivateLanHost(hostname)) {
+    return `${protocol}//${hostname}:${LOCAL_PORT}`;
+  }
+
+  return DEFAULT_RENDER_API;
 }
 
 function getStoredToken() {

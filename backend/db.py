@@ -219,6 +219,36 @@ def parse_items(value):
     return json.loads(value)
 
 
+SEED_PRODUCTS = [
+    ("iPhone 15 Pro", 129999, "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800", "mobiles", "Latest Apple flagship smartphone"),
+    ("Samsung Galaxy S24 Ultra", 119999, "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800", "mobiles", "Samsung premium AI smartphone"),
+    ("MacBook Air M3", 134999, "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800", "laptops", "Apple M3 ultra fast laptop"),
+    ("ASUS ROG Gaming Laptop", 149999, "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=800", "laptops", "RTX gaming laptop"),
+    ("Sony WH1000XM5", 24999, "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", "electronics", "Noise cancellation headphones"),
+    ("Nike Air Max", 8999, "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800", "fashion", "Premium sneakers"),
+    ("Luxury Handbag", 4999, "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800", "fashion", "Elegant designer handbag"),
+    ("Lakme Makeup Kit", 2499, "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800", "beauty", "Professional beauty makeup kit"),
+    ("Nykaa Face Serum", 999, "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800", "beauty", "Vitamin C glowing serum"),
+    ("PlayStation 5", 54999, "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800", "gaming", "Next generation console"),
+]
+
+
+def seed_products_if_empty(cur, conn):
+    execute(cur, "SELECT COUNT(*) FROM products")
+    count = cur.fetchone()[0]
+    if count > 0:
+        return False
+
+    for product in SEED_PRODUCTS:
+        execute(
+            cur,
+            "INSERT INTO products (name, price, image, category, description) VALUES (%s, %s, %s, %s, %s)",
+            product,
+        )
+    conn.commit()
+    return True
+
+
 def init_db():
     conn = get_conn()
     try:
@@ -261,24 +291,7 @@ def init_db():
         count = cur.fetchone()[0]
 
         if count == 0:
-            seed_products = [
-                ("iPhone 15 Pro", 129999, "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800", "mobiles", "Latest Apple flagship smartphone"),
-                ("Samsung Galaxy S24 Ultra", 119999, "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800", "mobiles", "Samsung premium AI smartphone"),
-                ("MacBook Air M3", 134999, "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800", "laptops", "Apple M3 ultra fast laptop"),
-                ("ASUS ROG Gaming Laptop", 149999, "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=800", "laptops", "RTX gaming laptop"),
-                ("Sony WH1000XM5", 24999, "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800", "electronics", "Noise cancellation headphones"),
-                ("Nike Air Max", 8999, "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800", "fashion", "Premium sneakers"),
-                ("Luxury Handbag", 4999, "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800", "fashion", "Elegant designer handbag"),
-                ("Lakme Makeup Kit", 2499, "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800", "beauty", "Professional beauty makeup kit"),
-                ("Nykaa Face Serum", 999, "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800", "beauty", "Vitamin C glowing serum"),
-                ("PlayStation 5", 54999, "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=800", "gaming", "Next generation console"),
-            ]
-            for product in seed_products:
-                execute(
-                    cur,
-                    "INSERT INTO products (name, price, image, category, description) VALUES (%s, %s, %s, %s, %s)",
-                    product,
-                )
+            seed_products_if_empty(cur, conn)
 
         conn.commit()
         cur.close()
