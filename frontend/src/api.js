@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const LOCAL_API = 'http://127.0.0.1:5001';
-const PROD_API = 'https://ecommerceagent-app.onrender.com';
+const PROD_API = 'https://ecommercesingleagentapp.onrender.com';
 
 function isLocalHost() {
   if (typeof window === 'undefined') return true;
