@@ -14,16 +14,6 @@ const CATEGORY_LABELS = {
   gaming: "Gaming",
 };
 
-const CATEGORY_IMAGES = {
-  all: "https://images.unsplash.com/photo-1441984904996-e0b6a6876864?w=800&q=80",
-  mobiles: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80",
-  laptops: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80",
-  electronics: "https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=800&q=80",
-  fashion: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800&q=80",
-  beauty: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&q=80",
-  gaming: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80",
-};
-
 const TESTIMONIALS = [
   {
     quote: "The build quality of the headphones is exceptional. Minimalist design paired with incredible sound.",
@@ -79,30 +69,6 @@ export default function Home({ products, addToCart, category, setCategory, loadi
             <p>Discover our premium collection of mobiles, laptops, fashion, and more — shop and checkout in one place.</p>
           </div>
           <div className="store-promo-badge">Free delivery on orders above ₹5,000</div>
-        </div>
-      </section>
-
-      <section className="section container">
-        <div className="section-header">
-          <h2>Shop by Category</h2>
-        </div>
-        <div className="categories-grid">
-          {CATEGORIES.filter((cat) => cat !== "all").map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className={`category-card ${category === cat ? "active" : ""}`}
-              onClick={() => setCategory(cat)}
-            >
-              <img src={CATEGORY_IMAGES[cat]} alt={CATEGORY_LABELS[cat]} />
-              <div className="category-overlay">
-                <div>
-                  <h3>{CATEGORY_LABELS[cat]}</h3>
-                  <span>Explore Collection →</span>
-                </div>
-              </div>
-            </button>
-          ))}
         </div>
       </section>
 
