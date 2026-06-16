@@ -167,7 +167,7 @@ export default function App() {
           </div>
         </footer>
 
-        {user && <ChatAgent />}
+        {user && <ChatAgent addToCart={addToCart} />}
       </div>
     </Router>
   );

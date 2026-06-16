@@ -12,7 +12,7 @@ from psycopg2.extras import Json
 from google import genai
 
 from db import execute, get_conn, init_db, parse_items, release_conn, seed_products_if_empty, with_db
-from ai_chat import build_chat_prompt, generate_with_gemini, local_chat_reply
+from ai_chat import build_chat_prompt, generate_with_gemini, local_chat_reply, process_chat_query
 
 # ================= LOAD ENV =================
 load_dotenv()
@@ -304,31 +304,23 @@ def get_orders(email):
 # ================= CHAT =================
 @app.route("/chat", methods=["POST"])
 def chat():
-
     try:
-
         message = request.json.get("message", "").strip()
         user_email = request.json.get("email")
+        last_seen_products = request.json.get("last_seen_products")
 
         if not message:
             return jsonify({
-                "reply": "Please enter a message."
+                "reply": "Please enter a message.",
+                "action": None,
+                "products": []
             })
 
         conn = get_conn()
-
         try:
             cur = conn.cursor()
 
-            execute(cur, """
-            SELECT name, price, category, description
-            FROM products
-            """)
-
-            product_rows = cur.fetchall()
-
             order_rows = []
-            order_text = ""
             if user_email:
                 execute(cur, """
                 SELECT id, total_amount, items, created_at
@@ -338,38 +330,53 @@ def chat():
                 LIMIT 5
                 """, (user_email,))
                 order_rows = cur.fetchall()
-                if order_rows:
-                    order_lines = []
-                    for row in order_rows:
-                        items = parse_items(row[2])
-                        names = ", ".join(
-                            item.get("name", "item") for item in items
-                        )
-                        order_lines.append(
-                            f"Order #{row[0]} - ₹{row[1]} - {names} - {row[3]}"
-                        )
-                    order_text = "\n".join(order_lines)
+
+            # Check general info/orders/welcome first
+            msg = message.lower()
+            is_policy = any(k in msg for k in ["return", "refund", "policy", "policies", "shipping", "delivery time"])
+            is_payment = any(k in msg for k in ["payment", "pay", "upi", "cod", "cash on delivery", "google pay", "phonepe", "card"])
+            is_order = any(k in msg for k in ["order", "track", "tracking", "status", "where is my", "my purchase"])
+            is_welcome = any(k in msg for k in ["hello", "hi", "hey", "help"])
+
+            if is_policy or is_payment or is_order or is_welcome:
+                reply = local_chat_reply(message, [], order_rows, user_email)
+                cur.close()
+                return jsonify({
+                    "reply": reply,
+                    "action": None,
+                    "products": []
+                })
+
+            execute(cur, """
+            SELECT id, name, price, image, category, description
+            FROM products
+            """)
+            product_rows = cur.fetchall()
+            products = []
+            for r in product_rows:
+                products.append({
+                    "id": r[0],
+                    "name": r[1],
+                    "price": float(r[2]) if r[2] is not None else 0.0,
+                    "image": r[3],
+                    "category": r[4],
+                    "description": r[5]
+                })
 
             cur.close()
 
         finally:
             release_conn(conn)
 
-        prompt = build_chat_prompt(message, product_rows, order_text, user_email)
-        reply = generate_with_gemini(get_ai(), prompt)
-
-        if not reply:
-            print("Using local chat fallback (Gemini unavailable)")
-            reply = local_chat_reply(message, product_rows, order_rows, user_email)
-
-        return jsonify({"reply": reply})
+        result = process_chat_query(get_ai(), message, products, last_seen_products)
+        return jsonify(result)
 
     except Exception as e:
-
         print("CHAT ERROR:", e)
-
         return jsonify({
-            "reply": "AI assistant unavailable currently. Please try again."
+            "reply": "AI assistant unavailable currently. Please try again.",
+            "action": None,
+            "products": []
         })
 
 

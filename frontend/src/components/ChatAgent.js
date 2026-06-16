@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api";
 
-export default function ChatAgent() {
+export default function ChatAgent({ addToCart }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [lastProducts, setLastProducts] = useState([]);
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([
     {
       text: "Hello! I'm your Style AI assistant. Ask me about products, orders, or anything else.",
@@ -30,10 +33,35 @@ export default function ChatAgent() {
       const res = await api.post("/chat", {
         message: currentInput,
         email: localStorage.getItem("email") || null,
+        last_seen_products: lastProducts,
       });
 
       const reply = res?.data?.reply || "Sorry, I couldn't understand that.";
       setMessages((prev) => [...prev, { text: reply, sender: "bot" }]);
+
+      if (res?.data?.products && res.data.products.length > 0) {
+        setLastProducts(res.data.products);
+      }
+
+      if (res?.data?.action) {
+        const actionType = res.data.action.type;
+        const actionProducts = res.data.action.products || [];
+
+        if (actionType === 'ADD_TO_CART' || actionType === 'BUY_NOW') {
+          actionProducts.forEach((p) => {
+            if (addToCart) addToCart(p);
+          });
+          if (actionType === 'BUY_NOW') {
+            navigate('/cart');
+          }
+        } else if (actionType === 'ADD_ALL_TO_CART') {
+          actionProducts.forEach((p) => {
+            if (addToCart) addToCart(p);
+          });
+        } else if (actionType === 'ADD_TO_WISHLIST') {
+          alert(`Added to wishlist: ${actionProducts.map((p) => p.name).join(', ')}`);
+        }
+      }
     } catch (err) {
       console.error("Chat Error:", err);
       let errorMsg = "AI assistant temporarily unavailable.";
